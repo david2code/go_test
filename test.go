@@ -2,26 +2,29 @@ package main
 
 import (
 	"fmt"
-	"math"
-	"runtime"
-	"time"
-	"strings"
-	"io"
-	"os"
 	"image"
+	"io"
+	"math"
+	"net"
+	"os"
+	"runtime"
+	"strings"
 	"sync"
+	"time"
+
+	"github.com/hashicorp/yamux"
 )
 
 var c, python, java bool
 
 const Pi = 3.14
 const (
-	Big = 1 << 100
-	Small = Big >>  99
+	Big   = 1 << 100
+	Small = Big >> 99
 )
 
 func needInt(x int) int {
-	return x * 10 + 1
+	return x*10 + 1
 }
 func needFloat(x float64) float64 {
 	return x * 0.1
@@ -37,7 +40,7 @@ func test_for() {
 
 func test_for2() {
 	sum := 1
-	for ; sum < 1000; {
+	for sum < 1000 {
 		sum += sum
 	}
 	fmt.Println(sum)
@@ -78,10 +81,10 @@ func pow(x, n, lim float64) float64 {
 func Sqrt(x float64) float64 {
 	z := 1.0
 	for i := 0; i < 100; i++ {
-		z -= (z * z - x) / (2 * z)
-		fmt.Println(i, z);
+		z -= (z*z - x) / (2 * z)
+		fmt.Println(i, z)
 	}
-	return z;
+	return z
 }
 
 func test_case() {
@@ -183,18 +186,18 @@ func test_array() {
 	fmt.Println(a[0], a[1])
 	fmt.Println(a)
 
-	primes := [6]int{2,3,4,5,67,99}
+	primes := [6]int{2, 3, 4, 5, 67, 99}
 	fmt.Println(primes)
 }
 func test_slice() {
-	primes := [6]int{2,3,4,5,67,99}
+	primes := [6]int{2, 3, 4, 5, 67, 99}
 
 	var s []int = primes[1:4]
 	fmt.Println(s)
 }
 
 func test_slice_literals() {
-	q := []int{2, 3, 4, 5,7, 11, 13}
+	q := []int{2, 3, 4, 5, 7, 11, 13}
 	q[2] = 50
 	fmt.Println(q)
 
@@ -321,7 +324,7 @@ func compute(fn func(float64, float64) float64) float64 {
 
 func test_function() {
 	hypot := func(x, y float64) float64 {
-		return math.Sqrt(x *x + y * y)
+		return math.Sqrt(x*x + y*y)
 	}
 	fmt.Println(hypot(5, 12))
 
@@ -342,7 +345,7 @@ func test_function_closures() {
 	for i := 0; i < 10; i++ {
 		fmt.Println(
 			pos(i),
-			neg(-2 * i),
+			neg(-2*i),
 		)
 	}
 }
@@ -367,8 +370,9 @@ func test_fabi() {
 type Vertex struct {
 	X, Y float64
 }
+
 func (v Vertex) Abs() float64 {
-	return math.Sqrt(v.X * v.X + v.Y * v.Y)
+	return math.Sqrt(v.X*v.X + v.Y*v.Y)
 }
 func (v *Vertex) Scale(f float64) {
 	v.X = v.X * f
@@ -376,6 +380,7 @@ func (v *Vertex) Scale(f float64) {
 }
 
 type MyFloat float64
+
 func (f MyFloat) Abs() float64 {
 	if f < 0 {
 		return float64(-f)
@@ -417,6 +422,7 @@ type I interface {
 type T struct {
 	S string
 }
+
 func (t T) M() {
 	fmt.Println(t.S)
 }
@@ -426,6 +432,7 @@ func test_interface_are_satisfied_implicitly() {
 }
 
 type F float64
+
 func (f F) M() {
 	fmt.Println(f)
 }
@@ -452,6 +459,7 @@ type Vetexx struct {
 type II interface {
 	M()
 }
+
 func (t *Vetexx) M() {
 	if t == nil {
 		fmt.Println("<nil>")
@@ -503,7 +511,7 @@ func test_type_assertions() {
 
 func do(i interface{}) {
 	switch v := i.(type) {
-	case int :
+	case int:
 		fmt.Printf("Twice %v is %v\n", v, v*2)
 	case string:
 		fmt.Printf("%q is %v bytes long\n", v, len(v))
@@ -519,7 +527,7 @@ func test_type_switches() {
 
 type Person struct {
 	Name string
-	Age int
+	Age  int
 }
 
 func (p Person) String() string {
@@ -527,23 +535,23 @@ func (p Person) String() string {
 }
 
 type IPAddr [4]byte
+
 func (ip IPAddr) String() string {
-	return fmt.Sprintf("%v:%v:%v:%v", ip[0], ip[1], ip[2], ip[3]);
+	return fmt.Sprintf("%v:%v:%v:%v", ip[0], ip[1], ip[2], ip[3])
 }
 
 func test_stringer() {
 	a := Person{"Arthur Dent", 42}
 	z := Person{"Zaphod beeblebrox", 9001}
-	fmt.Println(a, z);
+	fmt.Println(a, z)
 
 	var stringer fmt.Stringer
-	stringer = a;
+	stringer = a
 	fmt.Println(stringer.String())
 
-
 	hosts := map[string]IPAddr{
-		"loopback": {127,0,0,1},
-		"googleDNS": {8,8,8,8},
+		"loopback":  {127, 0, 0, 1},
+		"googleDNS": {8, 8, 8, 8},
 	}
 	for name, ip := range hosts {
 		fmt.Printf("%v: %v\n", name, ip)
@@ -559,7 +567,7 @@ func (e *MyError) Error() string {
 	return fmt.Sprintf("at %v, %s", e.When, e.What)
 }
 func run() error {
-	return &MyError {
+	return &MyError{
 		time.Now(),
 		"it didn't work",
 	}
@@ -571,6 +579,7 @@ func test_errors() {
 }
 
 type ErrNegativeSqrt float64
+
 func (e ErrNegativeSqrt) Error() string {
 	return fmt.Sprintf("%v error", float64(e))
 }
@@ -598,9 +607,9 @@ func test_reader() {
 	}
 }
 
-type MyReader struct {}
+type MyReader struct{}
 
-func (e *MyReader) Read(a[]byte)(int, error) {
+func (e *MyReader) Read(a []byte) (int, error) {
 	var size = cap(a)
 	for i := 0; i < size; i++ {
 		a[i] = 'A'
@@ -610,7 +619,7 @@ func (e *MyReader) Read(a[]byte)(int, error) {
 	return size, nil
 }
 func test_reader_exercise() {
-	var r MyReader;
+	var r MyReader
 	b := make([]byte, 8)
 	for {
 		n, err := r.Read(b)
@@ -630,7 +639,7 @@ func rot13(b byte) byte {
 		b -= 13
 	case 'a' <= b && b <= 'm':
 		b += 13
-	case 'm' < b && b <=  'z':
+	case 'm' < b && b <= 'z':
 		b -= 13
 	}
 	return b
@@ -656,7 +665,8 @@ func test_image() {
 	fmt.Println(m.At(100, 0).RGBA())
 }
 
-type Image struct {}
+type Image struct{}
+
 func (e *Image) Bounds() image.Rectangle {
 	return image.Rect(100, 0, 0, 0)
 }
@@ -687,11 +697,11 @@ func sum(s []int, c chan int) {
 }
 
 func test_channels() {
-	s := []int{7,5,3,7,8,9,1,2}
+	s := []int{7, 5, 3, 7, 8, 9, 1, 2}
 
 	c := make(chan int)
-	go sum(s[:len(s) / 2], c)
-	go sum(s[len(s) / 2:], c)
+	go sum(s[:len(s)/2], c)
+	go sum(s[len(s)/2:], c)
 	x, y := <-c, <-c
 	fmt.Println(x, y, x+y)
 }
@@ -708,7 +718,7 @@ func fibonacci(n int, c chan int) {
 	x, y := 0, 1
 	for i := 0; i < n; i++ {
 		c <- x
-		x, y = y, x + y
+		x, y = y, x+y
 	}
 	close(c)
 }
@@ -727,7 +737,7 @@ func fibonacci2(c, quit chan int) {
 		select {
 		case c <- x:
 			x, y = y, x+y
-		case <- quit:
+		case <-quit:
 			fmt.Println("quit")
 			return
 		}
@@ -743,7 +753,7 @@ func test_select() {
 		quit <- 0
 	}()
 	go fibonacci2(c, quit)
-	time.Sleep(10000 * time.Millisecond);
+	time.Sleep(10000 * time.Millisecond)
 }
 
 func test_default_selection() {
@@ -764,9 +774,10 @@ func test_default_selection() {
 }
 
 type SafeCounter struct {
-	v map[string]int
+	v   map[string]int
 	mux sync.Mutex
 }
+
 func (c *SafeCounter) Inc(key string) {
 	c.mux.Lock()
 	c.v[key]++
@@ -786,7 +797,68 @@ func test_mutex_counter() {
 	time.Sleep(time.Second)
 	fmt.Println(c.Value("somekey"))
 }
+
+func client() {
+	// Get a TCP connection
+	conn, err := net.Dial("tcp", "127.0.0.1:9090")
+	if err != nil {
+		panic(err)
+	}
+
+	// Setup client side of yamux
+	session, err := yamux.Client(conn, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	//Open a new stream
+	stream, err := session.Open()
+	if err != nil {
+		panic(err)
+	}
+	//Stream implements net.Conn
+	stream.Write([]byte("ping"))
+}
+
+func server() {
+	listener, err := net.Listen("tcp", "127.0.0.1:9090")
+	if err != nil {
+		fmt.Printf("listen failed, err: %v\n", err)
+		return
+	}
+	//Accept a TCP connect
+	conn, err := listener.Accept()
+	if err != nil {
+		panic(err)
+	}
+
+	//Setup server side of yamux
+	session, err := yamux.Server(conn, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	//Accept a stream
+	stream, err := session.Accept()
+	if err != nil {
+		panic(err)
+	}
+	buf := make([]byte, 4)
+	stream.Read(buf)
+	fmt.Printf("recv: %s", buf)
+}
+func test_yamux() {
+	go server()
+	time.Sleep(time.Second)
+	go client()
+
+	time.Sleep(time.Minute)
+}
 func main() {
+	test_yamux()
+	return
+
+	fmt.Println("hello %v", 123)
 	test_mutex_counter()
 
 	test_default_selection()
@@ -851,9 +923,9 @@ func main() {
 	fmt.Println(needInt(Small))
 	fmt.Println(needFloat(Big))
 
-	fmt.Printf("hello\n");
+	fmt.Printf("hello\n")
 	var i int
-	fmt.Println(i, c, python, java);
+	fmt.Println(i, c, python, java)
 
 	const World = "xxb"
 	fmt.Println("hello", World)
